@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Connect Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Safe Connect Dashboard</h1>
+            <div class="header-actions">
+                <span class="badge" style="background: rgba(88, 166, 255, 0.2); color: #58a6ff;">Live Analysis</span>
+            </div>
+        </header>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">Active Connections</div>
+                <div class="stat-value">{{ connections|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">High Risk IPs</div>
+                <div class="stat-value" style="color: var(--danger-color);">{{ high_risk_count }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Countries</div>
+                <div class="stat-value">{{ unique_countries }}</div>
+            </div>
+        </section>
+
+        <section class="dashboard-panel">
+            <div class="panel-header">
+                <div class="panel-title">Connection Log</div>
+                <input type="text" id="searchInput" class="search-bar" placeholder="Search IP, Country, PID...">
+            </div>
+
+            <div class="table-container">
+                <table id="connectionsTable">
+                    <thead>
+                        <tr>
+                            <th>Remote IP</th>
+                            <th>Local Endpoint</th>
+                            <th>Process ID</th>
+                            <th>Location</th>
+                            <th>Abuse Score</th>
+                            <th>VirusTotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for conn in connections %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600; font-size: 1.1rem;">{{ conn.ip }}</div>
+                                <div class="data-cell-sub">Port: {{ conn.remote_port }}</div>
+                            </td>
+                            <td>
+                                <div>{{ conn.local_ip }}</div>
+                                <div class="data-cell-sub">Port: {{ conn.local_port }}</div>
+                            </td>
+                            <td>
+                                <span class="badge" style="background: rgba(255, 255, 255, 0.1); color: var(--text-secondary);">PID: {{ conn.pid }}</span>
+                            </td>
+                            <td>
+                                <div>{{ conn.country }}</div>
+                                {% if conn.asn %}
+                                <div class="data-cell-sub">ASN: {{ conn.asn }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if conn.abuse_score is not none %}
+                                    {% if conn.abuse_score > 50 %}
+                                        <span class="badge danger">Score: {{ conn.abuse_score }}%</span>
+                                    {% elif conn.abuse_score > 0 %}
+                                        <span class="badge warning">Score: {{ conn.abuse_score }}%</span>
+                                    {% else %}
+                                        <span class="badge safe">Clean</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge" style="color: var(--text-secondary);">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if conn.vt_stats %}
+                                    {% if conn.vt_stats.malicious > 0 or conn.vt_stats.suspicious > 0 %}
+                                        <span class="badge danger">{{ conn.vt_stats.malicious }} / {{ conn.vt_stats.suspicious }}</span>
+                                    {% else %}
+                                        <span class="badge safe">Safe</span>
+                                    {% endif %}
+                                    <div class="data-cell-sub">Undetected: {{ conn.vt_stats.undetected }}</div>
+                                {% else %}
+                                    <span class="badge" style="color: var(--text-secondary);">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            var input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("searchInput");
+            filter = input.value.toUpperCase();
+            table = document.getElementById("connectionsTable");
+            tr = table.getElementsByTagName("tr");
+
+            for (i = 0; i < tr.length; i++) {
+                // Search all columns
+                td = tr[i].getElementsByTagName("td");
+                let found = false;
+                if(td.length > 0) {
+                     for(let j=0; j<td.length; j++) {
+                        if (td[j]) {
+                            txtValue = td[j].textContent || td[j].innerText;
+                            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                                found = true;
+                                break;
+                            }
+                        }
+                     }
+                     if(found) {
+                        tr[i].style.display = "";
+                     } else {
+                        tr[i].style.display = "none";
+                     }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
