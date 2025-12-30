@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Docstring for main
+Docstring for main snippet
 """
 
 import requests
