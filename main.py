@@ -20,7 +20,7 @@ ABUSE_URL = os.getenv('ABUSE_URL')
 
 SAFE_THRESHOLD = int(os.getenv('SAFE_THRESHOLD'))
 MALICIOUS_THRESHOLD = int(os.getenv('MALICIOUS_THRESHOLD'))
-
+RESCAN_INTERVAL = int(os.getenv('RESCAN_INTERVAL'))
 # abuseip
 abuseip_headers = {
     "Accept": "application/json",
@@ -45,17 +45,38 @@ def check_risk_level(abuse_score) -> str:
     return "UNKNOWN"
 
 
+# def check_abuse_score()
+
 while True:
     remote_ips = {}
     abuseip_info = {}
     history = {}
 
-    with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as f:
-        remote_ips = json.load(f)
+    with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as connections:
+        remote_ips = json.load(connections)
+
+    with open (ABUSEIP_INFO_FILE, 'r', encoding="utf-8") as abuse_ip:
+        abuse_ips = json.load(abuse_ip)
+
+    with open(HISTORY_FILE,'r', encoding="utf-8") as history_file:
+        history = json.load(history_file)
 
     for ip in remote_ips:
         if not remote_ips[ip]["is_checked"]:
-            # abuse ip next
+            try:
+                if abuse_ips[ip]:
+                    try:
+                        history[ip]['times_seen'] += 1
+                        print(f"{ip} was alraedy here")
+                        if time.time() - history[ip]['last_seen'] > RESCAN_INTERVAL:
+                            pass
+                        remote_ips[ip]["is_checked"] = True
+                        continue
+                    except KeyError:
+                        pass
+            except KeyError:
+                pass
+            # abuse ip check
             params = {
             "ipAddress": ip,
             "maxAgeInDays": 90
@@ -75,13 +96,31 @@ while True:
                 risk_level = "UNKNOWN"
             else:
                 risk_level = check_risk_level(abuseip_data["abuseConfidenceScore"])
+
             print(f'{ip} : {risk_level}')
-            # history[ip] = {
-            #     "first_seen":
-            # }
+
+            history[ip] = {
+                "first_seen": time.time(),
+                "last_seen": time.time(),
+                "times_seen": 1,
+                "risk_level": risk_level,
+                "last_scanned": time.time()
+            }
 
             remote_ips[ip]["is_checked"] = True
+
             time.sleep(2)
+
+        elif remote_ips[ip]["is_checked"]:
+            try:
+                history[ip]['last_seen'] = time.time()
+                with open (HISTORY_FILE, "w", encoding="utf-8") as history_file:
+                    json.dump(history, history_file, indent=2)
+                continue
+            except KeyError:
+                continue
+                
+
 
     with open (ABUSEIP_INFO_FILE, "r", encoding="utf-8") as abuseip_file:
         existing_data = json.load(abuseip_file)
@@ -93,4 +132,8 @@ while True:
 
     with open(CONN_RECORD_FILE, "w", encoding="utf-8") as conn_file:
         json.dump(remote_ips, conn_file, indent=2)
-    time.sleep(3600)
+
+    with open (HISTORY_FILE, "w", encoding="utf-8") as history_file:
+        json.dump(history, history_file, indent=2)
+
+    time.sleep(1800)
