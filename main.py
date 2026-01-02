@@ -3,10 +3,10 @@
 Docstring for main snippet
 """
 
-import requests
 import time
 import json
 import os
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,7 +16,6 @@ ABUSEIP_INFO_FILE = os.getenv("ABUSEIP_INFO_FILE")
 
 ABUSEAPI = os.getenv('ABUSEAPI')
 ABUSE_URL = os.getenv('ABUSE_URL')
-
 # abuseip
 abuseip_headers = {
     "Accept": "application/json",
@@ -25,17 +24,25 @@ abuseip_headers = {
 
 
 def check_risk_level(abuse_score) -> str:
+    """
+    Docstring for check_risk_level
+    
+    :param abuse_score: Description
+    :return: Description
+    :rtype: str
+    """
     if abuse_score <= 15:
-        risk_level = "SAFE"
+        return "SAFE"
     elif abuse_score <= 49:
-        risk_level = "SUSPICIOUS"
+        return "SUSPICIOUS"
     elif abuse_score >= 50:
-        risk_level = "MALICIOUS"
+        return "MALICIOUS"
     else:
-        risk_level = "UNKNOWN"
-    return risk_level
+        return "UNKNOWN"
 
 
+
+# print(check_risk_level(0, "102.1.1.1"))
 while True:
     remote_ips = {}
     virustotal_info = {}
@@ -50,7 +57,9 @@ while True:
             "ipAddress": ip,
             "maxAgeInDays": 90
             }
-            abuseip_response = requests.get(ABUSE_URL, headers=abuseip_headers, params=params, timeout=30)
+            abuseip_response = requests.get(
+                ABUSE_URL, headers=abuseip_headers, params=params, timeout=30
+            )
             if abuseip_response.status_code == 200:
                 abuseip_data = abuseip_response.json()["data"]
                 abuseip_info[ip] = {
@@ -59,21 +68,18 @@ while True:
                     "Country": abuseip_data["countryCode"] 
                 }
 
-            if not abuseip_data["abuseConfidenceScore"]:
+            if abuseip_data["abuseConfidenceScore"] is None:
                 risk_level = "UNKNOWN"
             else:
                 risk_level = check_risk_level(abuseip_data["abuseConfidenceScore"])
             print(f'{ip} : {risk_level}')
 
-
-
             remote_ips[ip]["is_checked"] = True
-            time.sleep(1)
+            time.sleep(2)
 
     with open (ABUSEIP_INFO_FILE, "w", encoding="utf-8") as abuseip_file:
         json.dump(abuseip_info, abuseip_file, indent=2)
 
     with open(CONN_RECORD_FILE, "w", encoding="utf-8") as conn_file:
         json.dump(remote_ips, conn_file, indent=2)
-    
     time.sleep(3600)
