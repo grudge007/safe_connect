@@ -13,9 +13,14 @@ load_dotenv()
 
 CONN_RECORD_FILE = os.getenv("CONN_RECORD_FILE")
 ABUSEIP_INFO_FILE = os.getenv("ABUSEIP_INFO_FILE")
+HISTORY_FILE = os.getenv('HISTORY_FILE')
 
 ABUSEAPI = os.getenv('ABUSEAPI')
 ABUSE_URL = os.getenv('ABUSE_URL')
+
+SAFE_THRESHOLD = int(os.getenv('SAFE_THRESHOLD'))
+MALICIOUS_THRESHOLD = int(os.getenv('MALICIOUS_THRESHOLD'))
+
 # abuseip
 abuseip_headers = {
     "Accept": "application/json",
@@ -31,22 +36,20 @@ def check_risk_level(abuse_score) -> str:
     :return: Description
     :rtype: str
     """
-    if abuse_score <= 15:
+    if abuse_score <= SAFE_THRESHOLD:
         return "SAFE"
-    elif abuse_score <= 49:
+    if abuse_score < MALICIOUS_THRESHOLD:
         return "SUSPICIOUS"
-    elif abuse_score >= 50:
+    if abuse_score >= MALICIOUS_THRESHOLD:
         return "MALICIOUS"
-    else:
-        return "UNKNOWN"
+    return "UNKNOWN"
 
 
-
-# print(check_risk_level(0, "102.1.1.1"))
 while True:
     remote_ips = {}
-    virustotal_info = {}
     abuseip_info = {}
+    history = {}
+
     with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as f:
         remote_ips = json.load(f)
 
@@ -73,12 +76,20 @@ while True:
             else:
                 risk_level = check_risk_level(abuseip_data["abuseConfidenceScore"])
             print(f'{ip} : {risk_level}')
+            # history[ip] = {
+            #     "first_seen":
+            # }
 
             remote_ips[ip]["is_checked"] = True
             time.sleep(2)
 
+    with open (ABUSEIP_INFO_FILE, "r", encoding="utf-8") as abuseip_file:
+        existing_data = json.load(abuseip_file)
+
+    merged_data = {**existing_data, **abuseip_info}
+
     with open (ABUSEIP_INFO_FILE, "w", encoding="utf-8") as abuseip_file:
-        json.dump(abuseip_info, abuseip_file, indent=2)
+        json.dump(merged_data, abuseip_file, indent=2)
 
     with open(CONN_RECORD_FILE, "w", encoding="utf-8") as conn_file:
         json.dump(remote_ips, conn_file, indent=2)
