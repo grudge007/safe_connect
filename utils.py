@@ -1,3 +1,7 @@
+"""
+Docstring for utils
+"""
+
 import os
 import socket
 from datetime import datetime
@@ -80,14 +84,14 @@ def check_abuse_score(ip_addr):
             ABUSE_URL, headers=abuseip_headers, params=params, timeout=30
         )
     except requests.exceptions.Timeout:
-       print("The request timed out.")   
+        print("The request timed out.")
     except requests.exceptions.ConnectionError:
         print("There was a connection error. Check your internet connection.")
     except requests.exceptions.TooManyRedirects:
         print("Too many redirects. The URL might be wrong.")
     except requests.exceptions.RequestException as e:
         print(f"An unexpected error occurred: {e}")
-              
+
     if abuseip_response.status_code == 200:
         abuseip_data = abuseip_response.json()["data"]
         host_name = reverse_dns_lookup(ip_addr)

@@ -16,7 +16,7 @@ if not os.path.exists(CONN_RECORD_FILE):
         json.dump({}, f, indent=2)
 
 with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as f:
-    remote_ips = json.load(f)    
+    remote_ips = json.load(f)
 
 while True:
     for conn in psutil.net_connections(kind='tcp4'):
