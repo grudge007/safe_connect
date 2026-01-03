@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card" data-category="all">
+        <div class="stat-icon icon-all">
+            <i class="fa-solid fa-network-wired"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Total Active</h3>
+            <p class="stat-value" id="stat-all">0</p>
+        </div>
+    </div>
+    <div class="stat-card" data-category="safe">
+        <div class="stat-icon icon-safe">
+            <i class="fa-solid fa-shield-check"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Safe</h3>
+            <p class="stat-value" id="stat-safe">0</p>
+        </div>
+    </div>
+    <div class="stat-card" data-category="suspicious">
+        <div class="stat-icon icon-suspicious">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Suspicious</h3>
+            <p class="stat-value" id="stat-suspicious">0</p>
+        </div>
+    </div>
+    <div class="stat-card" data-category="malicious">
+        <div class="stat-icon icon-malicious">
+            <i class="fa-solid fa-skull-crossbones"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Malicious</h3>
+            <p class="stat-value" id="stat-malicious">0</p>
+        </div>
+    </div>
+</div>
+
+<div class="card table-container">
+    <div class="card-header">
+        <h2>Active Connections</h2>
+        <span class="live-badge"><span class="pulse"></span> Live</span>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Hostname</th>
+                    <th>Full Location</th>
+                    <th>Ports (L/R)</th>
+                    <th>PID</th>
+                    <th>Risk Level</th>
+                    <th>Score</th>
+                    <th>Last Scanned</th>
+                </tr>
+            </thead>
+            <tbody id="connections-table-body">
+                <tr>
+                    <td colspan="8" class="loading-cell">Loading connections...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="pagination-container">
+        <button class="page-btn" id="d-first-btn" onclick="changePage('first')"><i
+                class="fa-solid fa-angles-left"></i></button>
+        <button class="page-btn" id="d-prev-btn" onclick="changePage('prev')"><i
+                class="fa-solid fa-angle-left"></i></button>
+        <span id="d-page-info">Page 1 of 1</span>
+        <button class="page-btn" id="d-next-btn" onclick="changePage('next')"><i
+                class="fa-solid fa-angle-right"></i></button>
+        <button class="page-btn" id="d-last-btn" onclick="changePage('last')"><i
+                class="fa-solid fa-angles-right"></i></button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const pageTitle = document.getElementById('page-title');
+        if (pageTitle) pageTitle.textContent = 'Dashboard';
+
+        // Initial fetch
+        fetchData();
+
+        // Poll every 10 seconds (User mentioned 10 min for json update, but UI can refresh faster to feel responsive or just wait)
+        // Let's stick to a reasonable polling like 30s to catch updates when they happen.
+        setInterval(fetchData, 30000);
+    });
+</script>
+{% endblock %}

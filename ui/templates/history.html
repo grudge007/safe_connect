@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card filter-card">
+    <div class="filter-controls">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="history-search" placeholder="Search IP or Hostname...">
+        </div>
+        <div class="filter-select">
+            <i class="fa-solid fa-filter"></i>
+            <select id="history-filter">
+                <option value="all">All Risks</option>
+                <option value="SAFE">Safe</option>
+                <option value="SUSPICIOUS">Suspicious</option>
+                <option value="MALICIOUS">Malicious</option>
+                <option value="UNKNOWN">Unknown</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="card table-container">
+    <div class="card-header">
+        <h2>Connection History</h2>
+        <div class="pagination-controls" id="pagination-controls">
+            <!-- Pagination will be injected here -->
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Hostname</th>
+                    <th>Location</th>
+                    <th>Risk Level</th>
+                    <th>First Seen</th>
+                    <th>Last Seen</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody id="history-table-body">
+                <tr>
+                    <td colspan="7" class="loading-cell">Loading history...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const pageTitle = document.getElementById('page-title');
+        if (pageTitle) pageTitle.textContent = 'History';
+
+        fetchHistory();
+    });
+</script>
+{% endblock %}

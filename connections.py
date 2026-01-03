@@ -10,6 +10,7 @@ load_dotenv()
 CONN_RECORD_FILE = os.getenv("CONN_RECORD_FILE")
 CONN_RECORD = {}
 
+
 if not os.path.exists(CONN_RECORD_FILE):
     # Create an empty JSON file
     with open(CONN_RECORD_FILE, "w", encoding="utf-8") as f:
@@ -23,6 +24,8 @@ while True:
         if conn.status == "ESTABLISHED":
             remote_ip = conn.raddr.ip
             if remote_ip.startswith("127."):
+                continue
+            if remote_ip.startswith("192.168"):
                 continue
 
             CONN_RECORD[conn.raddr.ip] = {

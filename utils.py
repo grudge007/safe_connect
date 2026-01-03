@@ -4,9 +4,15 @@ Docstring for utils
 
 import os
 import socket
+import time
+import json
+import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import requests
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -21,6 +27,9 @@ SAFE_THRESHOLD = int(os.getenv('SAFE_THRESHOLD'))
 MALICIOUS_THRESHOLD = int(os.getenv('MALICIOUS_THRESHOLD'))
 RESCAN_INTERVAL = int(os.getenv('RESCAN_INTERVAL'))
 
+# Global flag for graceful shutdown
+stop_flag = False
+
 abuseip_info = {}
 
 # abuseip
@@ -28,6 +37,13 @@ abuseip_headers = {
     "Accept": "application/json",
     "Key": ABUSEAPI
 }
+
+
+def graceful_shutdown(signal, frame):
+    global stop_flag
+    print(f"\nSignal {signal} received, preparing to shut down gracefully...")
+    stop_flag = True
+
 
 def check_risk_level(abuse_score) -> str:
     """
@@ -83,18 +99,25 @@ def check_abuse_score(ip_addr):
         abuseip_response = requests.get(
             ABUSE_URL, headers=abuseip_headers, params=params, timeout=30
         )
+        logger.info(f"Successfully sent request to abuse API for IP: {ip_addr}")
     except requests.exceptions.Timeout:
-        print("The request timed out.")
+        logger.error("The request timed out.")
+        return "UNKNOWN", "Unknown host", {}
     except requests.exceptions.ConnectionError:
-        print("There was a connection error. Check your internet connection.")
+        logger.error("There was a connection error. Check your internet connection.")
+        return "UNKNOWN", "Unknown host", {}
     except requests.exceptions.TooManyRedirects:
-        print("Too many redirects. The URL might be wrong.")
+        logger.error("Too many redirects. The URL might be wrong.")
+        return "UNKNOWN", "Unknown host", {}
     except requests.exceptions.RequestException as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
+        return "UNKNOWN", "Unknown host", {}
 
     if abuseip_response.status_code == 200:
         abuseip_data = abuseip_response.json()["data"]
+        logger.info(f"Received successful response from abuse API for IP: {ip_addr}, Confidence Score: {abuseip_data['abuseConfidenceScore']}")
         host_name = reverse_dns_lookup(ip_addr)
+        logger.info(f"Reverse DNS lookup for {ip_addr} returned: {host_name}")
         abuseip_info[ip_addr] = {
             "IP_Address": ip_addr,
             "abuseConfidenceScore": abuseip_data["abuseConfidenceScore"],
@@ -107,6 +130,7 @@ def check_abuse_score(ip_addr):
     else:
         risk = check_risk_level(abuseip_data["abuseConfidenceScore"])
 
+    logger.info(f"Risk level for IP {ip_addr}: {risk}")
     return risk, host_name, abuseip_info
 
 
@@ -117,10 +141,23 @@ def reverse_dns_lookup(ip_address):
     try:
         # gethostbyaddr returns a tuple: (hostname, aliaslist, ipaddrlist)
         hostname, _, _ = socket.gethostbyaddr(ip_address)
+        logger.debug(f"Reverse DNS lookup successful for {ip_address}: {hostname}")
         return hostname
     except socket.herror:
         # Handles the case where the IP address has no associated hostname (no PTR record)
+        logger.warning(f"No PTR record found for IP: {ip_address}")
         return "Unknown host"
     except socket.error:
         # Handles other potential socket errors
+        logger.error(f"Socket error during reverse DNS lookup for IP: {ip_address}")
         return "Unknown host"
+
+
+def atomic_write(path, data):
+    temp_file = path + '.temp'
+    with open (temp_file, "w", encoding="utf-8") as tmpfile:
+        json.dump(data, tmpfile, indent=2)
+        tmpfile.flush()
+        os.fsync(tmpfile.fileno())
+        time.sleep(5)
+    os.replace(temp_file, path)
