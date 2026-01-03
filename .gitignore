@@ -1,6 +1,6 @@
 .env
 abuseip.json
 connections.json
-vt.json
 history.json
 /__pycache__
+/ui
