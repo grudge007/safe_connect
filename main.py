@@ -10,7 +10,7 @@ import subprocess
 import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from utils import check_abuse_score, convert_to_datetime, convert_to_string, atomic_write
+from utils import check_abuse_score, convert_to_datetime, convert_to_string, atomic_write, hostname
 
 # Configure logging
 
@@ -37,6 +37,13 @@ except KeyboardInterrupt:
     logger.info("KeyboardInterrupt, Shutting Down Programme")
 
     sys.exit(1)
+
+try:
+    hostname = hostname()
+    print(hostname,"===========")
+except Exception:
+    hostname = "localhost"
+    pass
 
 
 try:
@@ -137,6 +144,7 @@ try:
                     "last_seen": convert_to_string(time.time()),
                     "times_seen": 1,
                     "risk_level": risk_level,
+                    "hostname": str(hostname),
                     "last_scanned": convert_to_string(time.time()),
                     "reason": reason
                 }

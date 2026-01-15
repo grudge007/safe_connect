@@ -124,9 +124,9 @@ def get_history():
         history_list.append(item)
         
     return jsonify(history_list)
-if is_port_open('0.0.0.0', 5000):
-    if __name__ == '__main__':
-        app.run(debug=True, host='0.0.0.0', port=5000)
-else:
-    print(f'Port is already in use or service is running')
-    sys.exit(1)
+# if is_port_open('0.0.0.0', 5000):
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
+# else:
+#     print(f'Port is already in use or service is running')
+#     sys.exit(1)

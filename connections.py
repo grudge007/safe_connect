@@ -57,7 +57,8 @@ try:
             json.dump(CONN_RECORD, f, indent=2)
         
         logger.info("Completed processing cycle, sleeping for 5 minutes")
-        time.sleep(300)
+        break
+        # time.sleep(300)
 except KeyboardInterrupt:
     # logger.info("KeyboardInterrupt, Shutting Down Programme")
     ""

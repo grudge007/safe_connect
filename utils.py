@@ -5,6 +5,7 @@ Docstring for utils
 import os
 import socket
 import time
+import subprocess
 import json
 import logging
 from datetime import datetime
@@ -167,3 +168,10 @@ def is_port_open(host, port) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(2)
         return s.connect_ex((host, port)) == 0
+
+
+def hostname():
+    hostname = subprocess.run(
+        ['hostname'], text=True, capture_output=True
+    ).stdout.strip()
+    return hostname
