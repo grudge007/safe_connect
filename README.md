@@ -17,7 +17,7 @@ Safe Connect is a network monitoring and security analysis tool designed to trac
   - `psutil` (for network connection monitoring)
   - `python-dotenv` (for environment configuration)
   - `requests` (for API calls)
-
+  - `Flask`
 To install the required libraries, you can run:
 ```bash
 pip install psutil python-dotenv requests
@@ -42,22 +42,12 @@ pip install psutil python-dotenv requests
   - `RESCAN_INTERVAL`: Time in seconds before an IP is re-scanned.
 
 ## Usage
-
-The system consists of two main components that should be run simultaneously:
-
-### 1. Connection Monitor
-Runs continuously to detect and record active connections.
-```bash
-python3 connections.py
-```
-
-### 2. Analysis Service
+###  Analysis Service
 Monitors the recorded connections, performs risk analysis, and updates the history.
 ```bash
 python3 main.py
 ```
 
-*Note: The included `start.sh` script attempts to launch `app.py`, `connections.py`, and `main.py`. Ensure `app.py` exists if you intend to use this script, or modify it to run only the available components.*
 
 ## Project Structure
 
