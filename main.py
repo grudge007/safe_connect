@@ -25,11 +25,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 try:
+    subprocess.run(['python3', 'connections.py'])
+except KeyboardInterrupt:
+    logger.info("KeyboardInterrupt, Shutting Down Programme")
+
+    sys.exit(1)
+
+try:
     subprocess.Popen(['python3', 'ui/app.py'])
 except KeyboardInterrupt:
     logger.info("KeyboardInterrupt, Shutting Down Programme")
 
     sys.exit(1)
+
 
 try:
     load_dotenv()
