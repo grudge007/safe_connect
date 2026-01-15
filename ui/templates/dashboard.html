@@ -52,16 +52,15 @@
                     <th>IP Address</th>
                     <th>Hostname</th>
                     <th>Full Location</th>
-                    <th>Ports (L/R)</th>
-                    <th>PID</th>
                     <th>Risk Level</th>
                     <th>Score</th>
                     <th>Last Scanned</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody id="connections-table-body">
                 <tr>
-                    <td colspan="8" class="loading-cell">Loading connections...</td>
+                    <td colspan="7" class="loading-cell">Loading connections...</td>
                 </tr>
             </tbody>
         </table>
@@ -94,4 +93,57 @@
         setInterval(fetchData, 30000);
     });
 </script>
+
+<!-- Details Modal -->
+<div id="details-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Connection Details</h2>
+            <button class="close-modal-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="detail-row">
+                <span class="detail-label">IP Address</span>
+                <span class="detail-value" id="m-ip"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Hostname</span>
+                <span class="detail-value" id="m-hostname"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Location</span>
+                <span class="detail-value" id="m-location"></span>
+            </div>
+            <div class="detail-grid">
+                <div class="detail-box">
+                    <span class="detail-label">Local IP</span>
+                    <span class="detail-value" id="m-local-ip"></span>
+                </div>
+                 <div class="detail-box">
+                    <span class="detail-label">Remote Port</span>
+                    <span class="detail-value" id="m-remote-port"></span>
+                </div>
+                <div class="detail-box">
+                    <span class="detail-label">Local Port</span>
+                    <span class="detail-value" id="m-local-port"></span>
+                </div>
+                <div class="detail-box">
+                    <span class="detail-label">Process ID (PID)</span>
+                    <span class="detail-value" id="m-pid"></span>
+                </div>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Risk Level</span>
+                <span class="detail-value" id="m-risk"></span>
+            </div>
+             <div class="detail-row">
+                <span class="detail-label">Abuse Score</span>
+                <span class="detail-value" id="m-score"></span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-back" onclick="closeModal()"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</button>
+        </div>
+    </div>
+</div>
 {% endblock %}

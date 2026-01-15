@@ -5,14 +5,15 @@ Docstring for main snippet
 import time
 import json
 import os
-# import signal
+import sys
+import subprocess
 import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from utils import check_abuse_score, convert_to_datetime, convert_to_string, atomic_write
 
-
 # Configure logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -23,109 +24,151 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
+try:
+    subprocess.Popen(['python3', 'ui/app.py'])
+except KeyboardInterrupt:
+    logger.info("KeyboardInterrupt, Shutting Down Programme")
 
-CONN_RECORD_FILE = os.getenv("CONN_RECORD_FILE")
-ABUSEIP_INFO_FILE = os.getenv("ABUSEIP_INFO_FILE")
-HISTORY_FILE = os.getenv('HISTORY_FILE')
-RESCAN_INTERVAL = int(os.getenv('RESCAN_INTERVAL'))
+    sys.exit(1)
 
-if not os.path.exists(CONN_RECORD_FILE):
-    with open (CONN_RECORD_FILE, "w", encoding="utf-8") as f:
-        json.dump({}, f, indent=2)
+try:
+    load_dotenv()
 
-if not os.path.exists(HISTORY_FILE):
-    with open (HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump({}, f, indent=2)
+    CONN_RECORD_FILE = os.getenv("CONN_RECORD_FILE")
+    ABUSEIP_INFO_FILE = os.getenv("ABUSEIP_INFO_FILE")
+    HISTORY_FILE = os.getenv('HISTORY_FILE')
+    RESCAN_INTERVAL = int(os.getenv('RESCAN_INTERVAL'))
 
-if not os.path.exists(ABUSEIP_INFO_FILE):
-    with open (ABUSEIP_INFO_FILE, "w", encoding="utf-8") as f:
-        json.dump({}, f, indent=2)
+    if not os.path.exists(CONN_RECORD_FILE):
+        with open (CONN_RECORD_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
 
-# signal.signal(signal.SIGINT, graceful_shutdown)  # Handle Ctrl+C (SIGINT)
-# signal.signal(signal.SIGTERM, graceful_shutdown)  # Handle termination request (SIGTERM)
+    if not os.path.exists(HISTORY_FILE):
+        with open (HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
+
+    if not os.path.exists(ABUSEIP_INFO_FILE):
+        with open (ABUSEIP_INFO_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
+
+    # signal.signal(signal.SIGINT, graceful_shutdown)  # Handle Ctrl+C (SIGINT)
+    # signal.signal(signal.SIGTERM, graceful_shutdown)  # Handle termination request (SIGTERM)
+
+    start_time = time.perf_counter()
+    end_time = start_time
+    while True:
+        try:
+            elapsed_time = end_time - start_time
+            if elapsed_time > 5 * 60:
+                subprocess.Popen(['python3', 'connections.py'])
+                time.sleep(2)
+        except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt, Shutting Down Programme")
+            sys.exit(1)
+        except Exception as e:
+            logger.info("An Exception Occured: %s", e)
+ 
+        remote_ips = {}
+        abuseip_info = {}
+        history = {}
+        try:
+            with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as connections:
+                remote_ips = json.load(connections)
+
+            with open (ABUSEIP_INFO_FILE, 'r', encoding="utf-8") as abuse_ip:
+                abuse_ips = json.load(abuse_ip)
+
+            with open(HISTORY_FILE,'r', encoding="utf-8") as history_file:
+                history = json.load(history_file)
+        except json.decoder.JSONDecodeError:
+            with open (CONN_RECORD_FILE, "w", encoding="utf-8") as f:
+                json.dump({}, f, indent=2)
+            with open (HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump({}, f, indent=2)
+            with open (ABUSEIP_INFO_FILE, "w", encoding="utf-8") as f:
+                json.dump({}, f, indent=2)
+            with open (ABUSEIP_INFO_FILE, 'r', encoding="utf-8") as abuse_ip:
+                abuse_ips = json.load(abuse_ip)
 
 
-while True:
-    remote_ips = {}
-    abuseip_info = {}
-    history = {}
 
-    with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as connections:
-        remote_ips = json.load(connections)
+        for ip in remote_ips:
+            if not remote_ips[ip]["is_checked"]:
+                try:
+                    if abuse_ips[ip]:
+                        try:
+                            history[ip]['times_seen'] += 1
+                            logger.info(f"IP {ip} was already seen {history[ip]['times_seen']} times")
+                            time_diff = datetime.now() - convert_to_datetime(history[ip]['last_seen'])
 
-    with open (ABUSEIP_INFO_FILE, 'r', encoding="utf-8") as abuse_ip:
-        abuse_ips = json.load(abuse_ip)
-
-    with open(HISTORY_FILE,'r', encoding="utf-8") as history_file:
-        history = json.load(history_file)
-
-    for ip in remote_ips:
-        if not remote_ips[ip]["is_checked"]:
-            try:
-                if abuse_ips[ip]:
-                    try:
-                        history[ip]['times_seen'] += 1
-                        logger.info(f"IP {ip} was already seen {history[ip]['times_seen']} times")
-                        time_diff = datetime.now() - convert_to_datetime(history[ip]['last_seen'])
-
-                        if time_diff > timedelta(seconds=RESCAN_INTERVAL):
-                            logger.info(f"Time difference for {ip}: {time_diff}")
-                            risk_level = check_abuse_score(ip)
-                            history[ip]['risk_level'] = risk_level
+                            if time_diff > timedelta(seconds=RESCAN_INTERVAL):
+                                logger.info(f"Time difference for {ip}: {time_diff}")
+                                risk_level = check_abuse_score(ip)
+                                history[ip]['risk_level'] = risk_level
+                                history[ip]['last_seen'] = convert_to_string(time.time())
+                                history[ip]['last_scanned'] = convert_to_string(time.time())
+                                logger.info(f"Rescanned IP {ip} with risk level: {risk_level}")
+                                end_time = time.perf_counter()
+                                continue
+                                
+                            remote_ips[ip]["is_checked"] = True
                             history[ip]['last_seen'] = convert_to_string(time.time())
-                            history[ip]['last_scanned'] = convert_to_string(time.time())
-                            logger.info(f"Rescanned IP {ip} with risk level: {risk_level}")
+                            logger.info(f"Updated last seen time for IP {ip}")
+                            end_time = time.perf_counter()
                             continue
-                        remote_ips[ip]["is_checked"] = True
-                        history[ip]['last_seen'] = convert_to_string(time.time())
-                        logger.info(f"Updated last seen time for IP {ip}")
-                        continue
 
-                    except KeyError:
-                        pass
-            except KeyError:
-                pass
+                        except KeyError:
+                            pass
+                except KeyError:
+                    pass
 
-            logger.info(f"Processing new IP: {ip}")
-            risk_level, HOSTNAME, abuseip_info = check_abuse_score(ip)
-            history[ip] = {
-                "first_seen": convert_to_string(time.time()),
-                "last_seen": convert_to_string(time.time()),
-                "times_seen": 1,
-                "risk_level": risk_level,
-                "last_scanned": convert_to_string(time.time())
-            }
+                logger.info(f"Processing new IP: {ip}")
+                risk_level, HOSTNAME, abuseip_info, reason = check_abuse_score(ip)
+                history[ip] = {
+                    "first_seen": convert_to_string(time.time()),
+                    "last_seen": convert_to_string(time.time()),
+                    "times_seen": 1,
+                    "risk_level": risk_level,
+                    "last_scanned": convert_to_string(time.time()),
+                    "reason": reason
+                }
+                if not reason: 
+                    remote_ips[ip]["is_checked"] = True
 
-            remote_ips[ip]["is_checked"] = True
-            logger.info(f"New IP {ip} added with risk level: {risk_level}")
+                logger.info(f"New IP {ip} added with risk level: {risk_level}")
+                end_time = time.perf_counter()
+                time.sleep(2)
 
-            time.sleep(2)
+            elif remote_ips[ip]["is_checked"]:
+                try:
+                    history[ip]['last_seen'] = convert_to_string(time.time())
+                    with open (HISTORY_FILE, "w", encoding="utf-8") as history_file:
+                        json.dump(history, history_file, indent=2)
+                        end_time = time.perf_counter()
+                    continue
+                except KeyError:
+                    end_time = time.perf_counter()
+                    continue
 
-        elif remote_ips[ip]["is_checked"]:
-            try:
-                history[ip]['last_seen'] = convert_to_string(time.time())
-                with open (HISTORY_FILE, "w", encoding="utf-8") as history_file:
-                    json.dump(history, history_file, indent=2)
-                continue
-            except KeyError:
-                continue
+        with open (ABUSEIP_INFO_FILE, "r", encoding="utf-8") as abuseip_file:
+            existing_data = json.load(abuseip_file)
 
-    with open (ABUSEIP_INFO_FILE, "r", encoding="utf-8") as abuseip_file:
-        existing_data = json.load(abuseip_file)
+        merged_data = {**existing_data, **abuseip_info}
+        atomic_write(ABUSEIP_INFO_FILE, merged_data)
 
-    merged_data = {**existing_data, **abuseip_info}
-    atomic_write(ABUSEIP_INFO_FILE, merged_data)
+        # with open (ABUSEIP_INFO_FILE, "w", encoding="utf-8") as abuseip_file:
+        #     json.dump(merged_data, abuseip_file, indent=2)
+        atomic_write(CONN_RECORD_FILE, remote_ips)
+        # with open(CONN_RECORD_FILE, "w", encoding="utf-8") as conn_file:
+        #     json.dump(remote_ips, conn_file, indent=2)
 
-    # with open (ABUSEIP_INFO_FILE, "w", encoding="utf-8") as abuseip_file:
-    #     json.dump(merged_data, abuseip_file, indent=2)
-    atomic_write(CONN_RECORD_FILE, remote_ips)
-    # with open(CONN_RECORD_FILE, "w", encoding="utf-8") as conn_file:
-    #     json.dump(remote_ips, conn_file, indent=2)
+        # with open (HISTORY_FILE, "w", encoding="utf-8") as history_file:
+        #     json.dump(history, history_file, indent=2)
+        atomic_write(HISTORY_FILE, history)
 
-    # with open (HISTORY_FILE, "w", encoding="utf-8") as history_file:
-    #     json.dump(history, history_file, indent=2)
-    atomic_write(HISTORY_FILE, history)
-
-    logger.info("Completed processing cycle, sleeping for 30 minutes")
-    time.sleep(1800)
+        logger.info("Completed processing cycle, sleeping for 30 minutes")
+        end_time = time.perf_counter()
+        time.sleep(1800)
+except KeyboardInterrupt:
+    logger.info("KeyboardInterrupt, Shutting Down Programme")
+    sys.exit(1)

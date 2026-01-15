@@ -4,38 +4,60 @@ Docstring for connections
 import os
 import json
 import time
+import logging
 import psutil
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 CONN_RECORD_FILE = os.getenv("CONN_RECORD_FILE")
 CONN_RECORD = {}
 
+try:
+    if not os.path.exists(CONN_RECORD_FILE):
+        # Create an empty JSON file
+        with open(CONN_RECORD_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
+    try:
+        with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as f:
+            remote_ips = json.load(f)
+    except json.decoder.JSONDecodeError:
+        with open(CONN_RECORD_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
+        with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as f:
+            remote_ips = json.load(f)
 
-if not os.path.exists(CONN_RECORD_FILE):
-    # Create an empty JSON file
-    with open(CONN_RECORD_FILE, "w", encoding="utf-8") as f:
-        json.dump({}, f, indent=2)
+    while True:
+        for conn in psutil.net_connections(kind='tcp4'):
+            if conn.status == "ESTABLISHED":
+                remote_ip = conn.raddr.ip
+                if remote_ip.startswith("127."):
+                    continue
+                if remote_ip.startswith("192.168"):
+                    continue
 
-with open (CONN_RECORD_FILE, 'r', encoding="utf-8") as f:
-    remote_ips = json.load(f)
-
-while True:
-    for conn in psutil.net_connections(kind='tcp4'):
-        if conn.status == "ESTABLISHED":
-            remote_ip = conn.raddr.ip
-            if remote_ip.startswith("127."):
-                continue
-            if remote_ip.startswith("192.168"):
-                continue
-
-            CONN_RECORD[conn.raddr.ip] = {
-                "remote_port" : conn.raddr.port,
-                "local_ip" : conn.laddr.ip,
-                "local_port" : conn.laddr.port,
-                "pid" : conn.pid,
-                "is_checked" : remote_ips.get(conn.raddr.ip, {}).get("is_checked", False)
-            }
-    with open(CONN_RECORD_FILE, "w", encoding="utf-8") as f:
-        json.dump(CONN_RECORD, f, indent=2)
-
-    time.sleep(300)
+                CONN_RECORD[conn.raddr.ip] = {
+                    "remote_port" : conn.raddr.port,
+                    "local_ip" : conn.laddr.ip,
+                    "local_port" : conn.laddr.port,
+                    "pid" : conn.pid,
+                    "is_checked" : remote_ips.get(conn.raddr.ip, {}).get("is_checked", False)
+                }
+        with open(CONN_RECORD_FILE, "w", encoding="utf-8") as f:
+            json.dump(CONN_RECORD, f, indent=2)
+        
+        logger.info("Completed processing cycle, sleeping for 5 minutes")
+        time.sleep(300)
+except KeyboardInterrupt:
+    # logger.info("KeyboardInterrupt, Shutting Down Programme")
+    ""

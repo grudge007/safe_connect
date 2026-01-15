@@ -1,7 +1,9 @@
 import os
 import json
+import sys
 from flask import Flask, render_template, jsonify
 from dotenv import load_dotenv
+from utils import is_port_open
 
 # Load environment variables from the parent directory
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
@@ -116,11 +118,15 @@ def get_history():
             "hostname": ip_abuse.get("hostname", "N/A"),
             "country": ip_abuse.get("Country", "N/A"),
             "abuse_score": ip_abuse.get("abuseConfidenceScore", "N/A"),
-            "is_active": is_active
+            "is_active": is_active,
+            "reason": details.get("reason", None)
         }
         history_list.append(item)
         
     return jsonify(history_list)
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+if is_port_open('0.0.0.0', 5000):
+    if __name__ == '__main__':
+        app.run(debug=True, host='0.0.0.0', port=5000)
+else:
+    print(f'Port is already in use or service is running')
+    sys.exit(1)

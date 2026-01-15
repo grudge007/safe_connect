@@ -102,16 +102,16 @@ def check_abuse_score(ip_addr):
         logger.info(f"Successfully sent request to abuse API for IP: {ip_addr}")
     except requests.exceptions.Timeout:
         logger.error("The request timed out.")
-        return "UNKNOWN", "Unknown host", {}
+        return "UNKNOWN", "Unknown host", {}, "request timed out"
     except requests.exceptions.ConnectionError:
         logger.error("There was a connection error. Check your internet connection.")
-        return "UNKNOWN", "Unknown host", {}
+        return "UNKNOWN", "Unknown host", {}, "connection error"
     except requests.exceptions.TooManyRedirects:
         logger.error("Too many redirects. The URL might be wrong.")
-        return "UNKNOWN", "Unknown host", {}
+        return "UNKNOWN", "Unknown host", {}, "Too many redirects"
     except requests.exceptions.RequestException as e:
         logger.error(f"An unexpected error occurred: {e}")
-        return "UNKNOWN", "Unknown host", {}
+        return "UNKNOWN", "Unknown host", {}, "An unexpected error occurred"
 
     if abuseip_response.status_code == 200:
         abuseip_data = abuseip_response.json()["data"]
@@ -131,7 +131,7 @@ def check_abuse_score(ip_addr):
         risk = check_risk_level(abuseip_data["abuseConfidenceScore"])
 
     logger.info(f"Risk level for IP {ip_addr}: {risk}")
-    return risk, host_name, abuseip_info
+    return risk, host_name, abuseip_info, None
 
 
 def reverse_dns_lookup(ip_address):
@@ -161,3 +161,9 @@ def atomic_write(path, data):
         os.fsync(tmpfile.fileno())
         time.sleep(5)
     os.replace(temp_file, path)
+
+
+def is_port_open(host, port) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(2)
+        return s.connect_ex((host, port)) == 0

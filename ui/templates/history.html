@@ -47,6 +47,17 @@
             </tbody>
         </table>
     </div>
+    <div class="pagination-container">
+        <button class="page-btn" id="h-first-btn" onclick="changeHistoryPage('first')"><i
+                class="fa-solid fa-angles-left"></i></button>
+        <button class="page-btn" id="h-prev-btn" onclick="changeHistoryPage('prev')"><i
+                class="fa-solid fa-angle-left"></i></button>
+        <span id="h-page-info">Page 1 of 1</span>
+        <button class="page-btn" id="h-next-btn" onclick="changeHistoryPage('next')"><i
+                class="fa-solid fa-angle-right"></i></button>
+        <button class="page-btn" id="h-last-btn" onclick="changeHistoryPage('last')"><i
+                class="fa-solid fa-angles-right"></i></button>
+    </div>
 </div>
 {% endblock %}
 

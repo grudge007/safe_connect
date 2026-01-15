@@ -1,5 +1,8 @@
 .env
 abuseip.json
 connections.json
+Dockerfile
+nohup.out
 history.json
 /__pycache__
+/docker

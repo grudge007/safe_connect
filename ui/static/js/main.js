@@ -7,14 +7,21 @@ function formatDate(timestamp) {
 }
 
 // Utility: Create Risk Badge
-function createRiskBadge(level) {
+function createRiskBadge(level, reason = null) {
     let icon = '';
+    let title = '';
+
     if (level === 'SAFE') icon = '<i class="fa-solid fa-check"></i>';
     else if (level === 'SUSPICIOUS') icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
     else if (level === 'MALICIOUS') icon = '<i class="fa-solid fa-skull-crossbones"></i>';
-    else icon = '<i class="fa-solid fa-question"></i>';
+    else {
+        icon = '<i class="fa-solid fa-question"></i>';
+        if (reason) {
+            title = ` title="Reason: ${reason}" style="cursor: help;"`;
+        }
+    }
 
-    return `<span class="badge badge-${level}">${icon} ${level}</span>`;
+    return `<span class="badge badge-${level}"${title}>${icon} ${level}</span>`;
 }
 
 // Global: History Data for filtering
@@ -22,6 +29,7 @@ let allHistoryData = [];
 // Global: Connections Data for pagination
 let allConnectionsData = [];
 let currentPage = 1;
+let currentHistoryPage = 1; // For History Pagination
 const ITEMS_PER_PAGE = 25;
 
 // Fetch Dashboard Data
@@ -71,7 +79,7 @@ function renderDashboardTable() {
     if (!tableBody) return;
 
     if (allConnectionsData.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="8" class="loading-cell">No active connections found</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="7" class="loading-cell">No active connections found</td></tr>';
         if (pageInfo) pageInfo.textContent = 'Page 1 of 1';
         updatePaginationControls(1);
         return;
@@ -87,17 +95,22 @@ function renderDashboardTable() {
 
     tableBody.innerHTML = '';
 
-    paginatedData.forEach(conn => {
+    paginatedData.forEach((conn, index) => {
+        // Calculate absolute index for modal data retrieval
+        const absIndex = start + index;
         const row = `
             <tr>
                 <td>${conn.ip}</td>
                 <td>${conn.hostname}</td>
                 <td>${conn.country}</td>
-                <td>${conn.local_port} <span style="color:var(--text-secondary)">/</span> ${conn.remote_port}</td>
-                <td>${conn.pid}</td>
                 <td>${createRiskBadge(conn.risk_level)}</td>
                 <td>${conn.abuse_score}</td>
                 <td>${formatDate(conn.last_scanned)}</td>
+                <td>
+                    <button class="btn-view" onclick="openModal(${absIndex})">
+                        <i class="fa-solid fa-eye"></i> View
+                    </button>
+                </td>
             </tr>
         `;
         tableBody.innerHTML += row;
@@ -107,6 +120,38 @@ function renderDashboardTable() {
     updatePaginationControls(totalPages);
 }
 
+// Modal Logic
+function openModal(index) {
+    const conn = allConnectionsData[index];
+    if (!conn) return;
+
+    document.getElementById('m-ip').textContent = conn.ip;
+    document.getElementById('m-hostname').textContent = conn.hostname;
+    document.getElementById('m-location').textContent = conn.country;
+    document.getElementById('m-local-ip').textContent = conn.local_ip || 'N/A';
+    document.getElementById('m-remote-port').textContent = conn.remote_port;
+    document.getElementById('m-local-port').textContent = conn.local_port;
+    document.getElementById('m-pid').textContent = conn.pid;
+
+    // Risk Badge in Modal - Handle as HTML
+    const riskEl = document.getElementById('m-risk');
+    riskEl.innerHTML = createRiskBadge(conn.risk_level);
+
+    document.getElementById('m-score').textContent = conn.abuse_score;
+
+    document.getElementById('details-modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('details-modal').classList.remove('active');
+}
+
+// Close on Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeModal();
+    }
+});
 function updatePaginationControls(totalPages) {
     const btnFirst = document.getElementById('d-first-btn');
     const btnPrev = document.getElementById('d-prev-btn');
@@ -158,16 +203,28 @@ async function fetchHistory() {
 
 function renderHistory(data) {
     const tableBody = document.getElementById('history-table-body');
+    const pageInfo = document.getElementById('h-page-info');
+
     if (!tableBody) return;
 
     tableBody.innerHTML = '';
 
     if (data.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="7" class="loading-cell">No history found</td></tr>';
+        if (pageInfo) pageInfo.textContent = 'Page 1 of 1';
+        updateHistoryPaginationControls(1);
         return;
     }
 
-    data.forEach(item => {
+    const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
+    if (currentHistoryPage > totalPages) currentHistoryPage = totalPages;
+    if (currentHistoryPage < 1) currentHistoryPage = 1;
+
+    const start = (currentHistoryPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    const paginatedData = data.slice(start, end);
+
+    paginatedData.forEach(item => {
         const dotColor = item.is_active ? 'var(--safe-color)' : 'var(--malicious-color)';
         const row = `
             <tr>
@@ -177,7 +234,7 @@ function renderHistory(data) {
                 </td>
                 <td>${item.hostname}</td>
                 <td>${item.country}</td>
-                <td>${createRiskBadge(item.risk_level)}</td>
+                <td>${createRiskBadge(item.risk_level, item.reason)}</td>
                 <td>${formatDate(item.first_seen)}</td>
                 <td>${formatDate(item.last_seen)}</td>
                 <td>${item.times_seen}</td>
@@ -185,6 +242,42 @@ function renderHistory(data) {
         `;
         tableBody.innerHTML += row;
     });
+
+    if (pageInfo) pageInfo.textContent = `Page ${currentHistoryPage} of ${totalPages || 1}`;
+    updateHistoryPaginationControls(totalPages);
+}
+
+function updateHistoryPaginationControls(totalPages) {
+    const btnFirst = document.getElementById('h-first-btn');
+    const btnPrev = document.getElementById('h-prev-btn');
+    const btnNext = document.getElementById('h-next-btn');
+    const btnLast = document.getElementById('h-last-btn');
+
+    if (btnFirst) btnFirst.disabled = currentHistoryPage === 1;
+    if (btnPrev) btnPrev.disabled = currentHistoryPage === 1;
+    if (btnNext) btnNext.disabled = currentHistoryPage >= totalPages;
+    if (btnLast) btnLast.disabled = currentHistoryPage >= totalPages;
+}
+
+function changeHistoryPage(action) {
+    // Determine data source: filtered or all
+    // Ideally renderHistory should take the current working dataset.
+    // For simplicity, let's assume we re-filter or use allHistoryData.
+    // But wait, filtering calls renderHistory which resets page?
+    // Let's rely on the fact that filtering resets page to 1 (usually good UX).
+    // But changing page needs access to the *currently filtered* data.
+    // To solve this, we should store `currentFilteredHistoryData`.
+
+    const dataset = window.currentFilteredHistoryData || allHistoryData;
+    const totalPages = Math.ceil(dataset.length / ITEMS_PER_PAGE);
+
+    switch (action) {
+        case 'first': currentHistoryPage = 1; break;
+        case 'prev': if (currentHistoryPage > 1) currentHistoryPage--; break;
+        case 'next': if (currentHistoryPage < totalPages) currentHistoryPage++; break;
+        case 'last': currentHistoryPage = totalPages; break;
+    }
+    renderHistory(dataset);
 }
 
 function setupFilters() {
@@ -205,8 +298,16 @@ function setupFilters() {
             return matchesSearch && matchesRisk;
         });
 
+        // Reset page when filtering
+        currentHistoryPage = 1;
+        // Store for pagination
+        window.currentFilteredHistoryData = filtered;
+
         renderHistory(filtered);
     }
+
+    // Initialize currentFilteredHistoryData
+    window.currentFilteredHistoryData = allHistoryData;
 
     searchInput.addEventListener('input', filterData);
     filterSelect.addEventListener('change', filterData);
